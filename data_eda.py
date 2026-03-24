@@ -50,7 +50,8 @@ def perform_eda(df):
 if __name__ == "__main__":
     df = load_and_clean_data()
     perform_eda(df)
+    print(df)
     
     # Save for Step 2
-    df.to_pickle("processed_step_1.pkl")
-    print("\nStep 1 Complete. Data saved to 'processed_step_1.pkl'")
+    # df.to_pickle("processed_step_1.pkl")
+    # print("\nStep 1 Complete. Data saved to 'processed_step_1.pkl'")

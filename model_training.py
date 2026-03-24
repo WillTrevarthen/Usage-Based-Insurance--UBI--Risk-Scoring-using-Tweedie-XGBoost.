@@ -57,5 +57,5 @@ if __name__ == "__main__":
     
     # Save the updated bundle and model
     joblib.dump(updated_data, "processed_step_2.pkl")
-    joblib.dump(model, "tweedie_model.joblib")
+    joblib.dump(model, "xgb_tweedie_model.joblib")
     print("Step 3 Complete. Model and fitted preprocessor saved.")

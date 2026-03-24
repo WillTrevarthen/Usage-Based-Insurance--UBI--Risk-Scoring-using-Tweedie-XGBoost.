@@ -34,9 +34,9 @@ def load_assets():
 model, preprocessor = load_assets()
 
 # 2. UI Header
-st.title("🚗 Actuarial Risk Engine")
+st.title("Car Insurance Risk Engine")
 st.markdown("""
-This tool uses a **Tweedie-XGBoost** model to calculate the predicted annual claim cost (Pure Premium) 
+This tool uses a **Tweedie-LightGBM, CatBoost, and XGBoost Ensemble** model to calculate the predicted annual claim cost (Pure Premium) 
 based on driver and vehicle profiles.
 """)
 
@@ -117,6 +117,3 @@ with col2:
         st.write("- **New Vehicle Discount:** Applied")
     if (driv_age < 25) and (density > 5000):
         st.write("- **Young Urban Penalty:** Applied (High Risk Zone)")
-
-# Add a little actuarial context at the bottom
-st.info("💡 **Note:** Pure Premium represents the expected cost of claims. This does not include taxes, commissions, or profit margins.")

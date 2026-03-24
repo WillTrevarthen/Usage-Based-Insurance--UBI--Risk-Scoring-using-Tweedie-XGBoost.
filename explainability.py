@@ -69,8 +69,11 @@ def explain_model(model_path, data_path):
 
     # 6. Visualization 2: Individual Risk (Waterfall)
     print("\nVisualizing Risk for High-Risk Case (Sample 0)...")
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(12, 8))
     shap.plots.waterfall(shap_values[0])
+    plt.title("Waterfall Plot: Feature Contributions to Predicted Risk for Sample 0")
+    plt.tight_layout()
+    plt.show()
 
 if __name__ == "__main__":
-    explain_model("tweedie_model.joblib", "processed_step_2.pkl")
+    explain_model("tuned_tweedie_ensemble_model.joblib", "processed_step_2.pkl")
