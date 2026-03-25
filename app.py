@@ -1,15 +1,31 @@
+from sklearn.base import BaseEstimator, RegressorMixin
 import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
 import matplotlib.pyplot as plt
 
+# --- ADD THIS CLASS TO THE TOP OF app.py ---
+class TweedieEnsemble(BaseEstimator, RegressorMixin):
+    def __init__(self, xgb_model, lgb_model, cat_model, weights=(0.34, 0.33, 0.33)):
+        self.xgb_model = xgb_model
+        self.lgb_model = lgb_model
+        self.cat_model = cat_model
+        self.weights = weights
+
+    def predict(self, X):
+        pred_xgb = self.xgb_model.predict(X)
+        pred_lgb = self.lgb_model.predict(X)
+        pred_cat = self.cat_model.predict(X)
+        return (self.weights[0] * pred_xgb) + (self.weights[1] * pred_lgb) + (self.weights[2] * pred_cat)
+# -------------------------------------------
+
 # 1. Page Configuration
 st.set_page_config(page_title="UBI Risk Engine", layout="wide")
 
 @st.cache_resource
 def load_assets():
-    model = joblib.load("tweedie_model.joblib")
+    model = joblib.load("tuned_tweedie_ensemble_model.joblib")
     # We need the bundle to get the fitted preprocessor
     data_bundle = joblib.load("processed_step_2.pkl")
     return model, data_bundle['preprocessor']
@@ -19,7 +35,7 @@ model, preprocessor = load_assets()
 # 2. UI Header
 st.title("🚗 Actuarial Risk Engine")
 st.markdown("""
-This tool uses a **Tweedie-XGBoost** model to calculate the predicted annual claim cost (Pure Premium) 
+This tool uses a **Tweedie-LightGBM, CatBoost, and XGBoost Ensemble** model to calculate the predicted annual claim cost (Pure Premium) 
 based on driver and vehicle profiles.
 """)
 

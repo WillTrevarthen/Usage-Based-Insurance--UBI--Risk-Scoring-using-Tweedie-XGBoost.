@@ -42,12 +42,15 @@ def train_ensemble_model(input_file):
     print("\nTraining Model 1: XGBoost...")
     xgb_model = xgb.XGBRegressor(
         objective='reg:tweedie',
-        tweedie_variance_power=1.5,
-        n_estimators=500,
-        learning_rate=0.03,
-        max_depth=4,
+        tweedie_variance_power=1.5, 
+        learning_rate=0.042,
+        n_estimators=222,    
+        max_depth=3,         
+        min_child_weight=36, 
+        subsample=0.97,
+        colsample_bytree=0.53,
         n_jobs=-1,
-        random_state=42
+        random_state=42,
     )
     xgb_model.fit(
         X_train_transformed, y_train,
@@ -62,9 +65,10 @@ def train_ensemble_model(input_file):
     lgb_model = lgb.LGBMRegressor(
         objective='tweedie',
         tweedie_variance_power=1.5,
-        n_estimators=500,
-        learning_rate=0.05,
-        num_leaves=31,
+        n_estimators=300, # Using tuned params
+        learning_rate=0.05, 
+        num_leaves=40,
+        min_child_samples=20,
         n_jobs=-1,
         random_state=42,
         verbose=-1
@@ -82,9 +86,10 @@ def train_ensemble_model(input_file):
     # CatBoost expects the objective in a specific format
     cat_model = CatBoostRegressor(
         loss_function='Tweedie:variance_power=1.5',
-        n_estimators=500,
-        learning_rate=0.05,
-        depth=6,
+        iterations=400, # Using tuned params
+        learning_rate=0.06,
+        depth=5,
+        l2_leaf_reg=5,
         silent=True,
         random_state=42,
         allow_writing_files=False
@@ -124,5 +129,5 @@ if __name__ == "__main__":
     model, updated_data = train_ensemble_model("processed_step_2.pkl")
     
     joblib.dump(updated_data, "processed_step_2.pkl")
-    joblib.dump(model, "tweedie_model.joblib")
-    print("\nSuccess! Three-model ensemble saved to 'tweedie_model.joblib'")
+    joblib.dump(model, "tuned_tweedie_ensemble_model.joblib")
+    print("\nSuccess! Tuned three-model ensemble saved to 'tuned_tweedie_ensemble_model.joblib'")

@@ -33,7 +33,8 @@ def preprocess_data(input_file):
     # Only include the specific columns we need to avoid "not unique" errors
     all_needed_columns = cat_features + num_features + bool_features
     X = df[all_needed_columns].copy() # .copy() ensures it's a fresh dataframe
-    y = df['ClaimAmount_Capped']
+    # Target is Pure Premium (Loss / Exposure) to ensure predictions are annualized
+    y = df['ClaimAmount_Capped'] / df['Exposure']
     w = df['Exposure']
 
     X_train, X_test, y_train, y_test, w_train, w_test = train_test_split(

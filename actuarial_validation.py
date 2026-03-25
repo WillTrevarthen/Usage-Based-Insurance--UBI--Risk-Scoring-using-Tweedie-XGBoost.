@@ -19,6 +19,7 @@ import joblib
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
 
 def gini_coefficient(actual, pred, weight):
     # Sort by predicted risk (ascending)
@@ -61,7 +62,7 @@ def plot_lift_chart(df_results, bins=10):
 if __name__ == "__main__":
     # 1. Load data and model
     data = joblib.load("processed_step_2.pkl")
-    model = joblib.load("tweedie_model.joblib")
+    model = joblib.load("tuned_tweedie_ensemble_model.joblib")
     
     X_test, y_test, w_test = data['test']
     preprocessor = data['preprocessor']
@@ -71,19 +72,41 @@ if __name__ == "__main__":
     y_pred = model.predict(X_test_transformed)
     
     # 3. Calculate Gini
-    gini_score, cum_actual, cum_weight = gini_coefficient(y_test, y_pred, w_test)
+    # Convert Rate back to Absolute Loss for validation (Rate * Exposure)
+    actual_loss = y_test * w_test
+    pred_loss = y_pred * w_test
+    
+    gini_score, cum_actual, cum_weight = gini_coefficient(actual_loss, pred_loss, w_test)
     print(f"\n--- Actuarial Performance ---")
     print(f"Model Gini Coefficient: {gini_score:.4f}")
 
     # 4. Risk Segmentation (Business Impact)
-    results_df = pd.DataFrame({'actual': y_test, 'pred': y_pred, 'exposure': w_test})
-    results_df['risk_group'] = pd.qcut(results_df['pred'].rank(method='first'), 3, labels=['Low Risk', 'Medium Risk', 'High Risk'])
+    # We add 'pred_rate' (y_pred) to use for segmentation sorting (Riskiness independent of duration)
+    results_df = pd.DataFrame({'actual': actual_loss, 'pred': pred_loss, 'exposure': w_test, 'pred_rate': y_pred})
     
-    summary = results_df.groupby('risk_group').agg({'actual': 'sum', 'exposure': 'sum'})
-    summary['Loss_Ratio_Per_Year'] = summary['actual'] / summary['exposure']
+    # Method A: Quantiles (Equal Volume) - Standard for Statistical Validation
+    results_df['risk_group_quantile'] = pd.qcut(results_df['pred_rate'].rank(method='first'), 3, labels=['Low', 'Medium', 'High'])
     
-    print("\n--- Business Impact: Risk Segmentation ---")
-    print(summary[['Loss_Ratio_Per_Year']])
+    # Method B: K-Means (Natural Clusters) - Better for Pricing/Business Logic
+    # Finds natural separation points (e.g., a small group of very risky drivers)
+    kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
+    results_df['cluster'] = kmeans.fit_predict(results_df[['pred_rate']])
+    
+    # Sort clusters by average risk so 0 is Low and 2 is High
+    cluster_map = results_df.groupby('cluster')['pred_rate'].mean().sort_values().index
+    mapping = {cluster_map[0]: 'Low', cluster_map[1]: 'Medium', cluster_map[2]: 'High'}
+    results_df['risk_group_kmeans'] = results_df['cluster'].map(mapping)
+
+    print("\n--- Segmentation Comparison: Loss Ratios ---")
+    print("\nMethod A: Equal-Sized Groups (Quantiles)")
+    summary_q = results_df.groupby('risk_group_quantile').agg({'actual': 'sum', 'exposure': 'sum', 'pred_rate': 'mean'})
+    summary_q['Loss_Ratio'] = summary_q['actual'] / summary_q['exposure']
+    print(summary_q[['pred_rate', 'Loss_Ratio']])
+    
+    print("\nMethod B: Natural Clustering (K-Means)")
+    summary_k = results_df.groupby('risk_group_kmeans').agg({'actual': 'sum', 'exposure': 'sum', 'pred_rate': 'mean'})
+    summary_k['Loss_Ratio'] = summary_k['actual'] / summary_k['exposure']
+    print(summary_k.loc[['Low', 'Medium', 'High']][['pred_rate', 'Loss_Ratio']])
 
     # 5. Visualizations
     plt.figure(figsize=(8, 8))
