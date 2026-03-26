@@ -1,4 +1,4 @@
-# --- ADD THIS CLASS TO THE TOP OF app.py ---
+# ------
 from sklearn.base import BaseEstimator, RegressorMixin
 
 class TweedieEnsemble(BaseEstimator, RegressorMixin):
@@ -23,19 +23,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def explain_model(model_path, data_path):
-    # 1. Load Model and Data
+    # Load Model and Data
     model = joblib.load(model_path)
     data = joblib.load(data_path)
     
     X_test, _, _ = data['test']
     preprocessor = data['preprocessor']
     
-    # 2. Transform Data
+    # Transform Data
     print("Transforming features for SHAP...")
     X_test_transformed = preprocessor.transform(X_test)
     
-    # 3. Dynamic Feature Name Reconstruction
-    # MUST match the order in Step 02: num -> cat -> bool
+    # Dynamic Feature Name Reconstruction
     num_names = ['VehPower', 'VehAge', 'DrivAge', 'LogDensity', 'Power_Age_Ratio']
     cat_names = preprocessor.named_transformers_['cat'].get_feature_names_out().tolist()
     bool_names = ['Young_Urban', 'Is_New_Car']
@@ -45,10 +44,9 @@ def explain_model(model_path, data_path):
     if X_test_transformed.shape[1] != len(all_feature_names):
         print(f"Warning: Name mismatch! Data has {X_test_transformed.shape[1]} cols, but we have {len(all_feature_names)} names.")
 
-    # 4. The Explainer
+    #  SHAP
     print("Initializing SHAP Explainer...")
     background_data = shap.sample(X_test_transformed, 100)
-    # Using the .predict method ensures we stay in 'Euro' units for the output
     explainer = shap.Explainer(model.predict, background_data)
     
     # Calculate SHAP values for a sample
@@ -59,7 +57,7 @@ def explain_model(model_path, data_path):
     # Assign the reconstructed names
     shap_values.feature_names = all_feature_names
 
-    # 5. Visualization 1: Global Importance
+    # Global Importance
     print("Generating Beeswarm Plot...")
     plt.figure(figsize=(12, 8))
     shap.plots.beeswarm(shap_values, max_display=15, show=False)
@@ -67,7 +65,7 @@ def explain_model(model_path, data_path):
     plt.tight_layout()
     plt.show()
 
-    # 6. Visualization 2: Individual Risk (Waterfall)
+    # Individual Risk (Waterfall)
     print("\nVisualizing Risk for High-Risk Case (Sample 0)...")
     plt.figure(figsize=(12, 8))
     shap.plots.waterfall(shap_values[0])
@@ -76,4 +74,4 @@ def explain_model(model_path, data_path):
     plt.show()
 
 if __name__ == "__main__":
-    explain_model("tuned_tweedie_ensemble_model.joblib", "processed_step_2.pkl")
+    explain_model("pickles/tuned_tweedie_ensemble_model.joblib", "pickles/processed_step_2.pkl")

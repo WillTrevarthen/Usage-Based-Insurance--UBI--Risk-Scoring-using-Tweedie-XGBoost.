@@ -6,7 +6,7 @@ from catboost import CatBoostRegressor
 from sklearn.metrics import mean_tweedie_deviance
 from sklearn.base import BaseEstimator, RegressorMixin
 
-# --- 1. Define the 3-Model Ensemble Wrapper ---
+# Define the 3-Model Ensemble Wrapper
 class TweedieEnsemble(BaseEstimator, RegressorMixin):
     def __init__(self, xgb_model, lgb_model, cat_model, weights=(0.34, 0.33, 0.33)):
         self.xgb_model = xgb_model
@@ -27,7 +27,7 @@ class TweedieEnsemble(BaseEstimator, RegressorMixin):
         return final_pred
 
 def train_ensemble_model(input_file):
-    # 2. Load Data
+    # Load Data
     data = joblib.load(input_file)
     X_train, y_train, w_train = data['train']
     X_test, y_test, w_test = data['test']
@@ -38,8 +38,8 @@ def train_ensemble_model(input_file):
     X_train_transformed = preprocessor.fit_transform(X_train)
     X_test_transformed = preprocessor.transform(X_test)
 
-    # --- 3. Train Model A: XGBoost ---
-    print("\nTraining Model 1: XGBoost...")
+    # Train Model A: XGBoost
+    print("Training Model 1: XGBoost...")
     xgb_model = xgb.XGBRegressor(
         objective='reg:tweedie',
         tweedie_variance_power=1.5,
@@ -54,10 +54,10 @@ def train_ensemble_model(input_file):
         sample_weight=w_train,
         eval_set=[(X_test_transformed, y_test)],
         sample_weight_eval_set=[w_test],
-        verbose=0  # Silent training to keep terminal clean
+        verbose=0
     )
 
-    # --- 4. Train Model B: LightGBM ---
+    # Train Model B: LightGBM
     print("Training Model 2: LightGBM...")
     lgb_model = lgb.LGBMRegressor(
         objective='tweedie',
@@ -77,7 +77,7 @@ def train_ensemble_model(input_file):
         callbacks=[lgb.early_stopping(50, verbose=False)]
     )
 
-    # --- 5. Train Model C: CatBoost ---
+    # Train Model C: CatBoost
     print("Training Model 3: CatBoost...")
     # CatBoost expects the objective in a specific format
     cat_model = CatBoostRegressor(
@@ -97,7 +97,7 @@ def train_ensemble_model(input_file):
         early_stopping_rounds=50
     )
 
-    # --- 6. Ensemble Evaluation ---
+    # 6. Ensemble Evaluation
     print("\nEvaluating Ensemble Strategy...")
     # Equal weighting to start (0.33, 0.33, 0.33)
     ensemble = TweedieEnsemble(xgb_model, lgb_model, cat_model, weights=(1/3, 1/3, 1/3))
@@ -114,15 +114,14 @@ def train_ensemble_model(input_file):
     print(f"LightGBM Deviance: {dev_lgb:.5f}")
     print(f"CatBoost Deviance: {dev_cat:.5f}")
     print(f"-----------------------------")
-    print(f"Ensemble Deviance: {dev_ens:.5f} (Lower is better)")
+    print(f"Ensemble Deviance: {dev_ens:.5f}")
     
     # Save Logic
     data['preprocessor'] = preprocessor
     return ensemble, data
 
 if __name__ == "__main__":
-    model, updated_data = train_ensemble_model("processed_step_2.pkl")
+    model, updated_data = train_ensemble_model("pickles/processed_step_2.pkl")
     
-    joblib.dump(updated_data, "processed_step_2.pkl")
-    joblib.dump(model, "tweedie_model.joblib")
-    print("\nSuccess! Three-model ensemble saved to 'tweedie_model.joblib'")
+    joblib.dump(updated_data, "pickles/processed_step_2.pkl")
+    joblib.dump(model, "pickles/tweedie_model.joblib")

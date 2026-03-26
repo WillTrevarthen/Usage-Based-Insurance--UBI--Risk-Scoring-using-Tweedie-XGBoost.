@@ -1,29 +1,46 @@
+# --- Ensemble Model Class ---
+from sklearn.base import BaseEstimator, RegressorMixin
+
+class TweedieEnsemble(BaseEstimator, RegressorMixin):
+    def __init__(self, xgb_model, lgb_model, cat_model, weights=(0.34, 0.33, 0.33)):
+        self.xgb_model = xgb_model
+        self.lgb_model = lgb_model
+        self.cat_model = cat_model
+        self.weights = weights
+
+    def predict(self, X):
+        pred_xgb = self.xgb_model.predict(X)
+        pred_lgb = self.lgb_model.predict(X)
+        pred_cat = self.cat_model.predict(X)
+        return (self.weights[0] * pred_xgb) + (self.weights[1] * pred_lgb) + (self.weights[2] * pred_cat)
+# -------------------------------------------
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
 import matplotlib.pyplot as plt
 
-# 1. Page Configuration
+# Page Configuration
 st.set_page_config(page_title="UBI Risk Engine", layout="wide")
 
 @st.cache_resource
 def load_assets():
-    model = joblib.load("tweedie_model.joblib")
+    model = joblib.load("pickles/tweedie_model.joblib")
     # We need the bundle to get the fitted preprocessor
-    data_bundle = joblib.load("processed_step_2.pkl")
+    data_bundle = joblib.load("pickles/processed_step_2.pkl")
     return model, data_bundle['preprocessor']
 
 model, preprocessor = load_assets()
 
-# 2. UI Header
-st.title("🚗 Actuarial Risk Engine")
+# UI Header
+st.title("Car Insurance Risk Engine")
 st.markdown("""
-This tool uses a **Tweedie-XGBoost** model to calculate the predicted annual claim cost (Pure Premium) 
+This tool uses a **Tweedie-LightGBM, CatBoost, and XGBoost Ensemble** model to calculate the predicted annual claim cost (Pure Premium) 
 based on driver and vehicle profiles.
 """)
 
-# 3. Input Sidebar
+# Input Sidebar
 st.sidebar.header("Policyholder Profile")
 
 # Categorical Inputs
@@ -38,7 +55,7 @@ veh_age = st.sidebar.slider("Vehicle Age (Years)", 0, 25, 5)
 driv_age = st.sidebar.slider("Driver Age", 18, 90, 35)
 density = st.sidebar.number_input("Population Density (pop/km2)", value=1000)
 
-# 4. Feature Engineering Logic (The "Brain")
+# Feature Engineering Logic (The "Brain")
 def predict_risk():
     # Construct raw dataframe
     input_dict = {
@@ -53,13 +70,13 @@ def predict_risk():
     }
     df_input = pd.DataFrame(input_dict)
 
-    # Apply same engineering as Script 02
+    # Apply same engineering as preprocessing script
     df_input['Power_Age_Ratio'] = df_input['VehPower'] / (df_input['DrivAge'] + 1)
     df_input['LogDensity'] = np.log(df_input['Density'] + 1)
     df_input['Is_New_Car'] = (df_input['VehAge'] <= 1).astype(int)
     df_input['Young_Urban'] = ((df_input['DrivAge'] < 25) & (df_input['Density'] > 5000)).astype(int)
 
-    # Ensure column order matches Step 02 lists: cat -> num -> bool
+    # Ensure column order matches
     cat_features = ['Area', 'VehBrand', 'VehGas', 'Region']
     num_features = ['VehPower', 'VehAge', 'DrivAge', 'LogDensity', 'Power_Age_Ratio']
     bool_features = ['Young_Urban', 'Is_New_Car']
@@ -72,7 +89,7 @@ def predict_risk():
     
     return prediction
 
-# 5. Output Display
+# Output Display
 col1, col2 = st.columns([1, 1])
 
 with col1:
@@ -82,7 +99,7 @@ with col1:
     # Visualizing the output
     st.metric(label="Calculated Pure Premium", value=f"€{premium:.2f}/year")
     
-    # Risk Rating
+    # Risk Rating (Use Static instead of dynamic thresholds for simplicity)
     if premium < 60:
         st.success("Risk Tier: LOW")
     elif premium < 120:
@@ -100,6 +117,3 @@ with col2:
         st.write("- **New Vehicle Discount:** Applied")
     if (driv_age < 25) and (density > 5000):
         st.write("- **Young Urban Penalty:** Applied (High Risk Zone)")
-
-# Add a little actuarial context at the bottom
-st.info("💡 **Note:** Pure Premium represents the expected cost of claims. This does not include taxes, commissions, or profit margins.")

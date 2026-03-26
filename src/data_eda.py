@@ -4,25 +4,25 @@ import seaborn as sns
 from sklearn.datasets import fetch_openml
 
 def load_and_clean_data():
-    print("--- Fetching Actuarial Datasets ---")
+    print("Fetching Actuarial Datasets")
     # freq contains policy characteristics and number of claims
     df_freq = fetch_openml(data_id=41214, as_frame=True, parser='pandas').frame
     # sev contains the cost of the claims
     df_sev = fetch_openml(data_id=41215, as_frame=True, parser='pandas').frame
 
-    # 1. Aggregate Severity to Policy ID level
+    # Aggregate Severity to Policy ID level
     df_sev_adj = df_sev.groupby('IDpol').agg({'ClaimAmount': 'sum'}).reset_index()
 
-    # 2. Merge with Frequency data
+    # Merge with Frequency data
     df = pd.merge(df_freq, df_sev_adj, on='IDpol', how='left')
     
-    # 3. Fill missing claim amounts with 0
+    # Fill missing claim amounts with 0
     df['ClaimAmount'] = df['ClaimAmount'].fillna(0)
     
-    # 4. Filter Exposure: Actuarially, we only care about records with time at risk
+    # Filter Exposure
     df = df[df['Exposure'] > 0].copy()
     
-    # 5. Actuarial Cap: Cap at 99th percentile for stability
+    # Cap at 99th percentile for stability
     cap = df['ClaimAmount'].quantile(0.99)
     df['ClaimAmount_Capped'] = df['ClaimAmount'].clip(upper=cap)
     
@@ -33,9 +33,9 @@ def load_and_clean_data():
     return df
 
 def perform_eda(df):
-    print("--- Running Actuarial EDA ---")
+    print("Running EDA")
     
-    # Average Pure Premium (Total Cost / Total Exposure)
+    # Average Pure Premium
     avg_pure_premium = df['ClaimAmount_Capped'].sum() / df['Exposure'].sum()
     print(f"Market Average Pure Premium: {avg_pure_premium:.2f}€ per year")
 
@@ -53,5 +53,5 @@ if __name__ == "__main__":
     print(df)
     
     # Save for Step 2
-    # df.to_pickle("processed_step_1.pkl")
-    # print("\nStep 1 Complete. Data saved to 'processed_step_1.pkl'")
+    df.to_pickle("pickles/processed_step_1_test.pkl")
+    # print("\nStep 1 Complete. Data saved to 'pickles/processed_step_1.pkl'")

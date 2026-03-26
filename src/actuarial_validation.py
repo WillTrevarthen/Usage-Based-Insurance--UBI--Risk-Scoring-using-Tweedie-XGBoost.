@@ -59,33 +59,31 @@ def plot_lift_chart(df_results, bins=10):
     plt.show()
 
 if __name__ == "__main__":
-    # 1. Load data and model
-    data = joblib.load("processed_step_2.pkl")
-    model = joblib.load("tweedie_model.joblib")
+    # Load data and model
+    data = joblib.load("pickles/processed_step_2.pkl")
+    model = joblib.load("pickles/tweedie_model.joblib")
     
     X_test, y_test, w_test = data['test']
     preprocessor = data['preprocessor']
     
-    # 2. Generate Predictions
+    # Generate Predictions
     X_test_transformed = preprocessor.transform(X_test)
     y_pred = model.predict(X_test_transformed)
     
-    # 3. Calculate Gini
+    # Calculate Gini
     gini_score, cum_actual, cum_weight = gini_coefficient(y_test, y_pred, w_test)
-    print(f"\n--- Actuarial Performance ---")
     print(f"Model Gini Coefficient: {gini_score:.4f}")
 
-    # 4. Risk Segmentation (Business Impact)
+    # Risk Segmentation (Business Impact)
     results_df = pd.DataFrame({'actual': y_test, 'pred': y_pred, 'exposure': w_test})
     results_df['risk_group'] = pd.qcut(results_df['pred'].rank(method='first'), 3, labels=['Low Risk', 'Medium Risk', 'High Risk'])
     
     summary = results_df.groupby('risk_group').agg({'actual': 'sum', 'exposure': 'sum'})
     summary['Loss_Ratio_Per_Year'] = summary['actual'] / summary['exposure']
     
-    print("\n--- Business Impact: Risk Segmentation ---")
     print(summary[['Loss_Ratio_Per_Year']])
 
-    # 5. Visualizations
+    # Visualizations
     plt.figure(figsize=(8, 8))
     plt.plot(cum_weight, cum_actual, label=f'Model (Gini: {gini_score:.2f})')
     plt.plot([0, 1], [0, 1], linestyle='--', color='gray', label='Random (Pure Luck)')
